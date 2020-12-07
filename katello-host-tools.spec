@@ -4,58 +4,60 @@
 %{!?python2_sitelib: %global python2_sitelib %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")}
 %{!?python3_sitelib: %global python3_sitelib %(%{__python3} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")}
 
-%global build_fact_plugin (0%{?rhel} == 7)
-
-Name: katello-host-tools
-Version: 3.5.4
-Release: 2%{?dist}
-Summary: A set of commands and yum plugins that support a Katello host
-License: LGPLv2
-URL:     https://github.com/Katello/katello-agent
-BuildArch: noarch
-
-Source0: https://codeload.github.com/Katello/katello-host-tools/tar.gz/%{version}#/%{name}-%{version}.tar.gz
-
-Requires: subscription-manager
-%if %{build_fact_plugin}
-Requires: %{name}-fact-plugin == %{version}-%{release}
+%if %{dnf_install}
+%global katello_libdir  %{python3_sitelib}/katello
+%global plugins_dir     %{python3_sitelib}/dnf-plugins
+%global plugins_confdir %{_sysconfdir}/dnf/plugins
 %else
-Obsoletes: %{name}-fact-plugin < %{version}-%{release}
+%global katello_libdir  %{python2_sitelib}/katello
+%global plugins_dir     %{_prefix}/lib/yum-plugins
+%global plugins_confdir %{_sysconfdir}/yum/pluginconf.d
 %endif
+
+Name:       katello-host-tools
+Version:    3.5.4
+Release:    2%{?dist}
+Summary:    A set of commands and yum plugins that support a Katello host
+License:    LGPLv2
+URL:        https://github.com/Katello/katello-agent
+BuildArch:  noarch
+
+Source0:    https://codeload.github.com/Katello/katello-host-tools/tar.gz/%{version}#/%{name}-%{version}.tar.gz
+
+Requires:   crontabs
+Requires:   subscription-manager
 
 %if %{dnf_install}
-BuildRequires: python3-devel
-BuildRequires: python3-setuptools
-Requires: python3-subscription-manager-rhsm
+BuildRequires:  python3-devel
+BuildRequires:  python3-setuptools
+Requires:       python3-subscription-manager-rhsm
+Obsoletes:      %{name}-fact-plugin < %{version}-%{release}
 %else
-BuildRequires: python2-devel
-BuildRequires: python-setuptools
-Requires: python-rhsm
+BuildRequires:  python2-devel
+BuildRequires:  python-setuptools
+Requires:       python-rhsm
+Requires:       %{name}-fact-plugin == %{version}-%{release}
 %endif
 
-Requires: crontabs
-
 %description
-A set of commands and yum plugins that support a Katello host including faster package profile uploading and bound repository reporting.  This is required for errata and package applicability reporting.
+A set of commands and yum plugins that support a Katello host including faster
+package profile uploading and bound repository reporting. This is required for
+errata and package applicability reporting.
 
-%if %{build_fact_plugin}
+%if %{yum_install}
 %package fact-plugin
-BuildArch:  noarch
 Summary:    Adds an fqdn fact plugin for subscription-manager
-Group:      Development/Languages
-
 Requires:   subscription-manager
 Obsoletes:  katello-agent-fact-plugin <= 3.0.0
 
 %description fact-plugin
-A subscription-manager plugin to add an additional fact 'network.fqdn' if not present
+A subscription-manager plugin to add an additional fact 'network.fqdn' if not
+present.
 %endif
 
 %package tracer
 BuildArch:  noarch
 Summary:    Adds Tracer functionality to a client managed by katello-host-tools
-Group:      Development/Languages
-
 Requires: %{name} = %{version}-%{release}
 %if %{dnf_install}
 Requires: python3-tracer
@@ -77,23 +79,13 @@ pushd src
 popd
 
 %install
-%if %{dnf_install}
-%global katello_libdir %{python3_sitelib}/katello
-%global plugins_dir %{python3_sitelib}/dnf-plugins
-%global plugins_confdir %{_sysconfdir}/dnf/plugins
-%else
-%global katello_libdir %{python2_sitelib}/katello
-%global plugins_dir %{_usr}/lib/yum-plugins
-%global plugins_confdir %{_sysconfdir}/yum/pluginconf.d
-%endif
-
 mkdir -p %{buildroot}%{katello_libdir}
 mkdir -p %{buildroot}%{plugins_dir}
+mkdir -p %{buildroot}%{plugins_confdir}
 
 cp src/katello/*.py %{buildroot}%{katello_libdir}/
 
-mkdir -p %{buildroot}%{plugins_confdir}
-
+# YUM/DNF plugin
 %if %{dnf_install}
 cp etc/yum/pluginconf.d/tracer_upload.conf %{buildroot}%{plugins_confdir}/
 cp src/dnf_plugins/*.py %{buildroot}%{plugins_dir}/
@@ -103,7 +95,7 @@ cp etc/yum/pluginconf.d/*.conf %{buildroot}%{plugins_confdir}/
 cp src/yum-plugins/*.py %{buildroot}%{plugins_dir}/
 %endif
 
-# executables
+# Executables
 mkdir -p %{buildroot}%{_sbindir}
 %if %{dnf_install}
 cp extra/katello-tracer-upload-dnf %{buildroot}%{_sbindir}/katello-tracer-upload
@@ -111,15 +103,15 @@ cp extra/katello-tracer-upload-dnf %{buildroot}%{_sbindir}/katello-tracer-upload
 cp bin/* %{buildroot}%{_sbindir}/
 %endif
 
-%if %{build_fact_plugin}
 # RHSM plugin
+%if %{yum_install}
 mkdir -p %{buildroot}%{_sysconfdir}/rhsm/pluginconf.d/
 mkdir -p %{buildroot}%{_datadir}/rhsm-plugins/
 cp etc/rhsm/pluginconf.d/fqdn.FactsPlugin.conf %{buildroot}%{_sysconfdir}/rhsm/pluginconf.d/fqdn.FactsPlugin.conf
 cp src/rhsm-plugins/fqdn.py %{buildroot}%{_datadir}/rhsm-plugins/fqdn.py
 %endif
 
-# cache directory
+# Cache directory
 mkdir -p %{buildroot}%{_localstatedir}/cache/katello-agent/
 
 # crontab
@@ -134,12 +126,6 @@ exit 0
 %files
 %license LICENSE
 %dir %{_localstatedir}/cache/katello-agent/
-
-%if %{yum_install}
-%config(noreplace) %{plugins_confdir}/package_upload.conf
-%config(noreplace) %{plugins_confdir}/enabled_repos_upload.conf
-%endif
-
 %dir %{katello_libdir}/
 %{katello_libdir}/constants.py*
 %{katello_libdir}/enabled_report.py*
@@ -148,8 +134,10 @@ exit 0
 %{katello_libdir}/uep.py*
 %{katello_libdir}/utils.py*
 %{katello_libdir}/__init__.py*
+%config(noreplace) %attr(0644, root, root) %{_sysconfdir}/cron.d/%{name}
 
 %if %{dnf_install}
+%dir %{katello_libdir}/__pycache__/
 %{katello_libdir}/__pycache__/constants.*
 %{katello_libdir}/__pycache__/enabled_report.*
 %{katello_libdir}/__pycache__/packages.*
@@ -158,16 +146,15 @@ exit 0
 %{katello_libdir}/__pycache__/utils.*
 %{katello_libdir}/__pycache__/__init__.*
 %else
+%config(noreplace) %{plugins_confdir}/package_upload.conf
+%config(noreplace) %{plugins_confdir}/enabled_repos_upload.conf
 %attr(750, root, root) %{_sbindir}/katello-package-upload
 %attr(750, root, root) %{_sbindir}/katello-enabled-repos-upload
-
 %{plugins_dir}/enabled_repos_upload.py*
 %{plugins_dir}/package_upload.py*
 %endif
 
-%config(noreplace) %attr(0644, root, root) %{_sysconfdir}/cron.d/%{name}
-
-%if %{build_fact_plugin}
+%if %{yum_install}
 %files fact-plugin
 %dir %{_sysconfdir}/rhsm/
 %dir %{_sysconfdir}/rhsm/pluginconf.d/
@@ -180,12 +167,12 @@ exit 0
 %{plugins_dir}/tracer_upload.py*
 %{katello_libdir}/tracer.py*
 %{plugins_confdir}/tracer_upload.conf
+%attr(750, root, root) %{_sbindir}/katello-tracer-upload
 
 %if %{dnf_install}
 %{katello_libdir}/__pycache__/tracer.*
 %{plugins_dir}/__pycache__/tracer_upload.*
 %endif
-%attr(750, root, root) %{_sbindir}/katello-tracer-upload
 
 %changelog
 * Mon Dec 07 2020 Simone Caronni <negativo17@gmail.com> - 3.5.4-2
