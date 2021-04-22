@@ -16,13 +16,13 @@
 
 Name:       katello-host-tools
 Version:    3.5.4
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    A set of commands and yum plugins that support a Katello host
 License:    LGPLv2
-URL:        https://github.com/Katello/katello-agent
+URL:        https://github.com/Katello/%{name}
 BuildArch:  noarch
 
-Source0:    https://codeload.github.com/Katello/katello-host-tools/tar.gz/%{version}#/%{name}-%{version}.tar.gz
+Source0:    https://codeload.github.com/Katello/%{name}/tar.gz/%{version}#/%{name}-%{version}.tar.gz
 
 Requires:   crontabs
 Requires:   subscription-manager
@@ -175,6 +175,9 @@ exit 0
 %endif
 
 %changelog
+* Thu Apr 22 2021 Simone Caronni <negativo17@gmail.com> - 3.5.4-3
+- Fix URLs.
+
 * Mon Dec 07 2020 Simone Caronni <negativo17@gmail.com> - 3.5.4-2
 - Update SPEC file for Fedora 33.
 - Clean up SPEC file, drop SUSE and CentOS/RHEL 6 support.
